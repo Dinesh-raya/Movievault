@@ -389,19 +389,19 @@ batchBtn.addEventListener('click', async () => {
   if (!titles.length) return toast('Paste at least one title', 'error');
 
   batchBtn.disabled = true;
-  let added = 0, failed = 0;
+  let added = 0, dupes = 0, notFound = 0;
 
   for (let i = 0; i < titles.length; i++) {
     const title = titles[i];
     batchProgress.textContent = `${i + 1}/${titles.length}: ${title}`;
 
     const exists = moviesData.some(m => m.title.toLowerCase() === title.toLowerCase());
-    if (exists) { failed++; continue; }
+    if (exists) { dupes++; continue; }
 
     try {
       const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`);
       const data = await res.json();
-      if (data.Response === 'False') { failed++; continue; }
+      if (data.Response === 'False') { notFound++; continue; }
 
       await db.ref('movies').push({
         title: data.Title, year: data.Year,
@@ -412,14 +412,17 @@ batchBtn.addEventListener('click', async () => {
         myRating: '', myNotes: '', createdAt: new Date().toISOString()
       });
       added++;
-    } catch { failed++; }
+    } catch { notFound++; }
   }
 
   batchBtn.disabled = false;
   batchInput.value = '';
   batchSection.style.display = 'none';
   batchProgress.textContent = '';
-  toast(`Added ${added}, failed ${failed}`, failed ? 'error' : 'success');
+  const parts = [`Added ${added}`];
+  if (dupes) parts.push(`${dupes} already in vault`);
+  if (notFound) parts.push(`${notFound} not found`);
+  toast(parts.join(', '), notFound ? 'error' : 'success');
 });
 
 // Dynamic Genre Dropdown & Sidebar
