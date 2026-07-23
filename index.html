@@ -3,46 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Movie Vault</title>
+  <title>MovieVault</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🎬 Personal Movie Vault</h1>
-      <p>Track your watched movies seamlessly</p>
-    </header>
+  <div class="app-layout">
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">&#x2630;</button>
 
-    <!-- Search / Add Section -->
-    <section class="add-movie-section">
-      <input type="text" id="movieInput" placeholder="Enter movie title (e.g., Inception)...">
-      <select id="statusInput">
-        <option value="Watched">Watched</option>
-        <option value="Plan to Watch">Plan to Watch</option>
-      </select>
-      <button id="addBtn">Add Movie</button>
-    </section>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">🎬</span>
+        <div class="brand-text">
+          <span class="brand-name">MovieVault</span>
+          <span class="brand-sub">My Movie Collection</span>
+        </div>
+      </div>
 
-    <!-- Controls Section -->
-    <section class="controls">
-      <input type="text" id="filterSearch" placeholder="Search my saved movies...">
-      <select id="filterStatus">
-        <option value="All">All Statuses</option>
-        <option value="Watched">Watched</option>
-        <option value="Plan to Watch">Plan to Watch</option>
-      </select>
-      <select id="filterGenre">
-        <option value="All">All Genres</option>
-      </select>
-    </section>
+      <div class="sidebar-auth" id="sidebarAuth">
+        <div id="authLoading" class="auth-loading">Loading...</div>
+        <div id="authLoggedOut" class="auth-section" style="display:none">
+          <button class="google-btn" id="loginBtn">
+            <span class="google-icon">G</span>
+            Sign in with Google
+          </button>
+          <p class="auth-note">Sign in to manage your vault</p>
+        </div>
+        <div id="authLoggedIn" class="auth-section" style="display:none">
+          <div class="auth-user" id="authUser"></div>
+          <button class="logout-btn" id="logoutBtn">Sign Out</button>
+        </div>
+      </div>
 
-    <!-- Movie Cards Grid -->
-    <main id="movieGrid" class="movie-grid"></main>
+      <nav class="sidebar-nav">
+        <div class="nav-group">
+          <div class="nav-group-title">GENRES</div>
+          <div id="sidebarGenres"></div>
+        </div>
+      </nav>
+
+      <div class="sidebar-add">
+        <div class="sidebar-add-title">Add Movie</div>
+        <input type="text" id="movieInput" placeholder="Search title...">
+        <select id="statusInput">
+          <option value="Watched">Watched</option>
+          <option value="Plan to Watch">Plan to Watch</option>
+        </select>
+        <div class="add-row">
+          <input type="number" id="myRating" placeholder="Rating 1-10" min="1" max="10" step="0.5">
+          <button id="addBtn">Add</button>
+        </div>
+        <textarea id="myNotes" placeholder="Your thoughts..." rows="2"></textarea>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-nav">
+        <div class="header-center">
+          <div class="search-wrapper">
+            <span class="search-icon">&#x1F50D;</span>
+            <input type="text" id="filterSearch" placeholder="Search movies...">
+          </div>
+          <div class="filter-group">
+            <select id="filterGenre">
+              <option value="All">All Genres</option>
+            </select>
+            <select id="filterStatus">
+              <option value="All">All Status</option>
+              <option value="Watched">Watched</option>
+              <option value="Plan to Watch">Plan to Watch</option>
+            </select>
+            <select id="filterSort">
+              <option value="recent">Recently Added</option>
+              <option value="rating">IMDb Rating</option>
+              <option value="myrating">My Rating</option>
+              <option value="year">Year</option>
+              <option value="title">Title A-Z</option>
+            </select>
+          </div>
+        </div>
+        <div class="header-right"></div>
+      </header>
+
+      <div class="section-header">
+        <span class="section-icon">&#x1F525;</span>
+        <h2>My Vault</h2>
+        <span class="section-count" id="movieCount">0 movies</span>
+        <div class="stats-group" id="statsGroup"></div>
+      </div>
+
+      <div id="movieGrid" class="movie-grid"></div>
+    </main>
   </div>
 
-  <!-- Firebase SDKs -->
+  <div id="movieModal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="close-btn" id="closeModal">&times;</button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

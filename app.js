@@ -1,158 +1,400 @@
-// --- CONFIGURATION ---
-const OMDB_API_KEY = "http://www.omdbapi.com/?i=tt3896198&apikey=82e034db"; 
+const OMDB_API_KEY = "82e034db";
 
 const firebaseConfig = {
-  apiKey: "YOUR_FIREBASE_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "movie1089",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyA7q8CwpYI7wPjVFDOGfHcki__L4NZYOys",
+  authDomain: "mymovievalult.firebaseapp.com",
+  databaseURL: "https://mymovievalult-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mymovievalult",
+  storageBucket: "mymovievalult.firebasestorage.app",
+  messagingSenderId: "835718859866",
+  appId: "1:835718859866:web:af843b0cf3a81004629c63"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db = firebase.database();
 
 let moviesData = [];
+let loading = true;
+let isOwner = false;
+let currentUser = null;
 
-// DOM Elements
 const movieInput = document.getElementById('movieInput');
 const statusInput = document.getElementById('statusInput');
+const myRating = document.getElementById('myRating');
+const myNotes = document.getElementById('myNotes');
 const addBtn = document.getElementById('addBtn');
 const movieGrid = document.getElementById('movieGrid');
 const filterSearch = document.getElementById('filterSearch');
 const filterStatus = document.getElementById('filterStatus');
 const filterGenre = document.getElementById('filterGenre');
-
-// Create Modal Element
-const modalHTML = `
-  <div id="movieModal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="close-btn" id="closeModal">&times;</button>
-      <div class="modal-body" id="modalBody"></div>
-    </div>
-  </div>
-`;
-document.body.insertAdjacentHTML('beforeend', modalHTML);
-
+const filterSort = document.getElementById('filterSort');
 const modal = document.getElementById('movieModal');
 const modalBody = document.getElementById('modalBody');
-document.getElementById('closeModal').addEventListener('click', () => modal.classList.remove('active'));
+const movieCount = document.getElementById('movieCount');
+const sidebarGenres = document.getElementById('sidebarGenres');
+const statsGroup = document.getElementById('statsGroup');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const authLoading = document.getElementById('authLoading');
+const authLoggedOut = document.getElementById('authLoggedOut');
+const authLoggedIn = document.getElementById('authLoggedIn');
+const authUser = document.getElementById('authUser');
+const loginBtn = document.getElementById('loginBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const sidebarAdd = document.querySelector('.sidebar-add');
+const OWNER_EMAIL = "dineshraya365@gmail.com";
+
+document.getElementById('closeModal').addEventListener('click', () => closeModal());
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+sidebarToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+document.addEventListener('click', e => {
+  if (window.innerWidth <= 768 && sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== sidebarToggle) {
+    sidebar.classList.remove('open');
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// Auth
+const auth = firebase.auth();
+auth.useDeviceLanguage();
+
+loginBtn.addEventListener('click', async () => {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch (err) {
+    if (err.code !== 'auth/popup-closed-by-user') toast('Sign in failed', 'error');
+  }
+});
+
+logoutBtn.addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+  currentUser = user;
+  authLoading.style.display = 'none';
+  if (user) {
+    isOwner = user.email === OWNER_EMAIL;
+    authLoggedOut.style.display = 'none';
+    authLoggedIn.style.display = 'flex';
+    authUser.innerHTML = `
+      ${user.photoURL ? `<img class="auth-avatar" src="${user.photoURL}" alt="">` : `<div class="auth-avatar" style="background:var(--accent-gold);color:#000;display:flex;align-items:center;justify-content:center;font-weight:700;">${user.email[0].toUpperCase()}</div>`}
+      <div><div>${user.displayName || 'User'}</div><div class="auth-email">${user.email}</div></div>
+    `;
+    if (!isOwner) {
+      toast('Signed in as viewer. Only the owner can modify movies.', 'info');
+    }
+  } else {
+    isOwner = false;
+    authLoggedOut.style.display = 'flex';
+    authLoggedIn.style.display = 'none';
+  }
+  updateAuthUI();
+});
+
+function updateAuthUI() {
+  sidebarAdd.style.display = isOwner ? '' : 'none';
+}
+
+function toast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const icons = { success: '\u2705', error: '\u274C', info: '\u2139\uFE0F' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type] || ''}</span><span class="toast-message">${message}</span>`;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'toastOut 0.3s ease both';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+function closeModal() {
+  modal.classList.remove('active');
+}
 
 // Add Movie
 addBtn.addEventListener('click', async () => {
+  if (!isOwner) return toast('Only the owner can add movies', 'error');
   const query = movieInput.value.trim();
-  if (!query) return alert('Enter a title');
+  if (!query) return toast('Enter a movie title', 'error');
+
+  const exists = moviesData.some(m => m.title.toLowerCase() === query.toLowerCase());
+  if (exists) {
+    const addAnyway = confirm(`"${query}" is already in your vault. Add it again?`);
+    if (!addAnyway) return;
+  }
 
   addBtn.disabled = true;
-  addBtn.innerText = 'Searching...';
+  addBtn.textContent = '...';
 
   try {
     const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(query)}&apikey=${OMDB_API_KEY}`);
     const data = await res.json();
 
     if (data.Response === 'False') {
-      alert('Movie not found!');
+      toast('Movie not found on OMDb', 'error');
     } else {
       const newMovie = {
         title: data.Title,
         year: data.Year,
-        poster: data.Poster !== 'N/A' ? data.Poster : 'https://via.placeholder.com/300x450?text=No+Poster',
+        poster: data.Poster !== 'N/A' ? data.Poster : '',
         imdbRating: data.imdbRating,
-        genres: data.Genre.split(', '),
+        genres: data.Genre ? data.Genre.split(', ') : [],
         plot: data.Plot,
         status: statusInput.value,
-        createdAt: new Date()
+        myRating: myRating.value || '',
+        myNotes: myNotes.value.trim() || '',
+        createdAt: new Date().toISOString()
       };
 
-      await db.collection('movies').add(newMovie);
+      await db.ref('movies').push(newMovie);
       movieInput.value = '';
+      myRating.value = '';
+      myNotes.value = '';
+      toast(`Added "${data.Title}"`, 'success');
     }
   } catch (err) {
-    alert('Error adding movie');
+    toast('Error adding movie. Check your connection.', 'error');
   } finally {
     addBtn.disabled = false;
-    addBtn.innerText = 'Add Movie';
+    addBtn.textContent = 'Add';
   }
 });
 
-// Firestore Listener
-db.collection('movies').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-  moviesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+// Listen to Realtime Data
+db.ref('movies').on('value', snapshot => {
+  loading = false;
+  const data = snapshot.val();
+  moviesData = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
   updateGenreDropdown();
   renderMovies();
 });
 
-// Render Movies Grid (Matching Image 1)
+function getSortedMovies(list) {
+  const sort = filterSort ? filterSort.value : 'recent';
+  const sorted = [...list];
+  switch (sort) {
+    case 'rating': sorted.sort((a, b) => parseFloat(b.imdbRating || 0) - parseFloat(a.imdbRating || 0)); break;
+    case 'myrating': sorted.sort((a, b) => parseFloat(b.myRating || 0) - parseFloat(a.myRating || 0)); break;
+    case 'year': sorted.sort((a, b) => parseInt(b.year) - parseInt(a.year)); break;
+    case 'title': sorted.sort((a, b) => a.title.localeCompare(b.title)); break;
+    default: sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); break;
+  }
+  return sorted;
+}
+
+// Render Movies Grid
 function renderMovies() {
+  if (loading) {
+    movieGrid.innerHTML = '<div class="empty-state"><div class="loading-spinner"></div><p>Loading your vault...</p></div>';
+    movieCount.textContent = '...';
+    return;
+  }
+
+  if (moviesData.length === 0) {
+    movieGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">🎬</div><h3>Your vault is empty</h3><p>Search for a movie and add it to get started!</p></div>';
+    movieCount.textContent = '0 movies';
+    statsGroup.innerHTML = '';
+    return;
+  }
+
   const search = filterSearch.value.toLowerCase();
   const status = filterStatus.value;
   const genre = filterGenre.value;
 
-  const filtered = moviesData.filter(m => {
+  let filtered = moviesData.filter(m => {
     const matchesSearch = m.title.toLowerCase().includes(search);
     const matchesStatus = status === 'All' || m.status === status;
     const matchesGenre = genre === 'All' || (m.genres && m.genres.includes(genre));
     return matchesSearch && matchesStatus && matchesGenre;
   });
 
-  movieGrid.innerHTML = filtered.map(m => `
-    <div class="movie-card" onclick="openMovieModal('${m.id}')">
+  filtered = getSortedMovies(filtered);
+
+  // Stats
+  const total = moviesData.length;
+  const watched = moviesData.filter(m => m.status === 'Watched').length;
+  const avgRating = moviesData.filter(m => m.myRating).reduce((s, m) => s + parseFloat(m.myRating), 0);
+  const avgCount = moviesData.filter(m => m.myRating).length;
+  const avg = avgCount ? (avgRating / avgCount).toFixed(1) : '--';
+  statsGroup.innerHTML = `
+    <span class="stat-pill"><strong>${total}</strong> total</span>
+    <span class="stat-pill"><strong>${watched}</strong> watched</span>
+    <span class="stat-pill"><strong>${total - watched}</strong> plan to watch</span>
+    <span class="stat-pill">Avg <strong>${avg}</strong>/10</span>
+  `;
+
+  if (filtered.length === 0) {
+    movieGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><h3>No matches found</h3><p>Try a different search or filter.</p></div>';
+    movieCount.textContent = '0 movies';
+    return;
+  }
+
+  movieCount.textContent = `${filtered.length} movie${filtered.length !== 1 ? 's' : ''}`;
+
+  movieGrid.innerHTML = filtered.map((m, i) => {
+    const posterSrc = m.poster || 'https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster';
+    return `<div class="movie-card" onclick="openMovieModal('${m.id}')" style="animation-delay:${(i % 20) * 0.04}s">
       <div class="poster-wrapper">
-        <img src="${m.poster}" alt="${m.title}">
+        <img src="${posterSrc}" alt="${m.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster'">
         <span class="badge-year">${m.year}</span>
-        <span class="badge-rating"><span>★</span> ${m.imdbRating}</span>
+        <span class="badge-rating"><span>★</span> ${m.imdbRating || 'N/A'}</span>
       </div>
       <div class="card-title-box">
         <h4>${m.title}</h4>
+        ${m.myRating ? `<div class="my-rating-badge">★ ${m.myRating}/10</div>` : ''}
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
-// Open Detail Modal (Matching Image 2)
+// Open Detail Modal
 function openMovieModal(id) {
   const movie = moviesData.find(m => m.id === id);
   if (!movie) return;
 
   modalBody.innerHTML = `
     <div style="border-radius:12px; overflow:hidden; margin-bottom:16px;">
-      <img src="${movie.poster}" style="width:100%; max-height:300px; object-fit:cover;" />
+      <img src="${movie.poster || 'https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster'}" style="width:100%; max-height:300px; object-fit:cover;" onerror="this.src='https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster'" />
     </div>
     <h2>${movie.title}</h2>
     <div class="modal-meta">
-      <span class="rating">★ ${movie.imdbRating}</span>
+      <span class="rating">★ ${movie.imdbRating || 'N/A'}</span>
       <span>${movie.year}</span>
-      <span style="background:#21262d; padding:2px 8px; border-radius:4px; font-size:12px;">${movie.status}</span>
+      <span class="status-badge">${movie.status}</span>
     </div>
-    <p class="modal-plot">${movie.plot}</p>
-    <button class="delete-action-btn" onclick="deleteMovie('${movie.id}')">Delete Movie</button>
+    ${displayRating(movie)}
+    ${movie.myNotes ? `<div class="my-notes-modal">${movie.myNotes}</div>` : ''}
+    <p class="modal-plot">${movie.plot || 'No plot available.'}</p>
+    ${isOwner ? `<div class="modal-actions">
+      <button class="edit-action-btn" onclick="editMovieModal('${movie.id}')">Edit</button>
+      <button class="delete-action-btn" onclick="deleteMovie('${movie.id}')">Delete</button>
+    </div>` : ''}
   `;
 
   modal.classList.add('active');
 }
 
-// Delete Movie
-async function deleteMovie(id) {
-  if (confirm('Remove this movie from your vault?')) {
-    await db.collection('movies').doc(id).delete();
-    modal.classList.remove('active');
+function displayRating(movie) {
+  if (!movie.myRating) return '';
+  return `<div class="my-rating-modal"><span class="label">My Rating:</span><span class="value">★ ${movie.myRating}/10</span></div>`;
+}
+
+// Edit Movie in Modal
+function editMovieModal(id) {
+  const movie = moviesData.find(m => m.id === id);
+  if (!movie) return;
+  modalBody.innerHTML = `
+    <div style="border-radius:12px; overflow:hidden; margin-bottom:16px;">
+      <img src="${movie.poster || 'https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster'}" style="width:100%; max-height:300px; object-fit:cover;" onerror="this.src='https://via.placeholder.com/300x450/15181e/6b7280?text=No+Poster'" />
+    </div>
+    <h2>${movie.title}</h2>
+    <div class="modal-meta">
+      <span class="rating">★ ${movie.imdbRating || 'N/A'}</span>
+      <span>${movie.year}</span>
+      <select class="modal-edit-select" id="editStatus">
+        <option value="Watched" ${movie.status === 'Watched' ? 'selected' : ''}>Watched</option>
+        <option value="Plan to Watch" ${movie.status === 'Plan to Watch' ? 'selected' : ''}>Plan to Watch</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">My Rating (1-10)</div>
+      <input type="number" class="modal-edit-input" id="editRating" value="${movie.myRating || ''}" min="1" max="10" step="0.5" style="width:120px;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <div style="font-size:12px; color:var(--text-muted); margin-bottom:4px;">My Notes</div>
+      <textarea class="modal-edit-textarea" id="editNotes" rows="3">${movie.myNotes || ''}</textarea>
+    </div>
+    <p class="modal-plot">${movie.plot || 'No plot available.'}</p>
+    <div class="modal-actions">
+      <button class="cancel-action-btn" onclick="openMovieModal('${movie.id}')">Cancel</button>
+      <button class="save-action-btn" onclick="saveEditMovie('${movie.id}')">Save Changes</button>
+    </div>
+  `;
+}
+
+// Save Edit
+async function saveEditMovie(id) {
+  if (!isOwner) return toast('Only the owner can edit movies', 'error');
+  const status = document.getElementById('editStatus').value;
+  const rating = document.getElementById('editRating').value;
+  const notes = document.getElementById('editNotes').value.trim();
+
+  try {
+    await db.ref(`movies/${id}`).update({
+      status,
+      myRating: rating || '',
+      myNotes: notes || ''
+    });
+    toast('Movie updated', 'success');
+    closeModal();
+  } catch (err) {
+    toast('Error saving changes', 'error');
   }
 }
 
-// Dynamic Genre Dropdown
+// Delete Movie
+async function deleteMovie(id) {
+  if (!isOwner) return toast('Only the owner can delete movies', 'error');
+  if (confirm('Remove this movie from your vault?')) {
+    try {
+      await db.ref(`movies/${id}`).remove();
+      closeModal();
+      toast('Movie removed', 'success');
+    } catch (err) {
+      toast('Error deleting movie', 'error');
+    }
+  }
+}
+
+// Dynamic Genre Dropdown & Sidebar
 function updateGenreDropdown() {
   const genres = new Set();
   moviesData.forEach(m => m.genres && m.genres.forEach(g => genres.add(g)));
-  
+  const sorted = [...genres].sort();
+
   const currentSelection = filterGenre.value;
   filterGenre.innerHTML = '<option value="All">All Genres</option>';
-  genres.forEach(g => {
+  sorted.forEach(g => {
     filterGenre.innerHTML += `<option value="${g}">${g}</option>`;
   });
   filterGenre.value = currentSelection;
+  const actualSelection = filterGenre.value;
+
+  sidebarGenres.innerHTML = '<a href="#" class="nav-item all-genre" data-genre="All">All Genres</a>';
+  sorted.forEach(g => {
+    sidebarGenres.innerHTML += `<a href="#" class="nav-item" data-genre="${g}">${g}</a>`;
+  });
+  if (actualSelection === 'All') {
+    sidebarGenres.querySelector('.all-genre').classList.add('active');
+  } else {
+    const active = sidebarGenres.querySelector(`[data-genre="${actualSelection}"]`);
+    if (active) active.classList.add('active');
+  }
 }
 
+// Event Listeners
 filterSearch.addEventListener('input', renderMovies);
 filterStatus.addEventListener('change', renderMovies);
-filterGenre.addEventListener('change', renderMovies);
+filterGenre.addEventListener('change', () => {
+  const active = sidebarGenres.querySelector(`[data-genre="${filterGenre.value}"]`);
+  sidebarGenres.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (active) active.classList.add('active');
+  else sidebarGenres.querySelector('.all-genre')?.classList.add('active');
+  renderMovies();
+});
+filterSort.addEventListener('change', renderMovies);
+
+sidebarGenres.addEventListener('click', e => {
+  const item = e.target.closest('.nav-item');
+  if (!item) return;
+  e.preventDefault();
+  const genre = item.dataset.genre;
+  filterGenre.value = genre;
+  sidebarGenres.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  item.classList.add('active');
+  renderMovies();
+});
