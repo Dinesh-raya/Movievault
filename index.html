@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MovieVault</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -53,6 +57,26 @@
           <button id="addBtn">Add</button>
         </div>
         <textarea id="myNotes" placeholder="Your thoughts..." rows="2"></textarea>
+      </div>
+
+      <div class="sidebar-batch" id="sidebarBatch">
+        <div class="batch-toggle" id="batchToggle">+ Add Multiple</div>
+        <div id="batchSection" style="display:none">
+          <div class="sidebar-add-title">Batch Add</div>
+          <textarea id="batchInput" placeholder="Inception, The Dark Knight, Interstellar..." rows="4"></textarea>
+          <button class="batch-btn" id="batchBtn">Add All</button>
+          <div id="batchProgress"></div>
+        </div>
+      </div>
+
+      <div class="sidebar-export">
+        <button class="export-btn" id="exportBtn">Export as JSON</button>
+      </div>
+
+      <div class="sidebar-shortcuts">
+        <span class="shortcut-hint"><kbd>/</kbd> Search</span>
+        <span class="shortcut-hint"><kbd>N</kbd> Add</span>
+        <span class="shortcut-hint"><kbd>Esc</kbd> Close</span>
       </div>
     </aside>
 
@@ -108,5 +132,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
   <script src="app.js"></script>
+  <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');</script>
 </body>
 </html>

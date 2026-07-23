@@ -314,7 +314,8 @@ body {
   display: flex; gap: 10px; align-items: center;
   margin-bottom: 14px; font-size: 13px; flex-wrap: wrap;
 }
-.modal-meta .rating { color: var(--accent-gold); font-weight: 700; }
+.modal-meta .rating { color: var(--accent-gold); font-weight: 700; text-decoration: none; cursor: pointer; }
+.modal-meta .rating:hover { text-decoration: underline; }
 .modal-meta .status-badge { background: var(--bg-input); padding: 2px 8px; border-radius: 4px; font-size: 12px; color: var(--text-main); }
 
 .modal-edit-input {
@@ -439,6 +440,53 @@ body {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== BATCH ADD ===== */
+.sidebar-batch { padding: 0 16px 12px; border-top: 1px solid var(--border-color); }
+
+.batch-toggle {
+  font-size: 12px; color: var(--accent-gold); cursor: pointer;
+  padding: 10px 0; font-weight: 600;
+}
+.batch-toggle:hover { color: var(--accent-gold-hover); }
+
+#batchSection { padding-top: 4px; }
+
+.batch-btn {
+  width: 100%; background: var(--accent-gold); color: #000;
+  border: none; padding: 8px; border-radius: 6px;
+  font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 6px;
+}
+.batch-btn:hover { background: var(--accent-gold-hover); }
+.batch-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#batchProgress { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+
+/* ===== EXPORT ===== */
+.sidebar-export { padding: 8px 16px 12px; }
+
+.export-btn {
+  width: 100%; background: transparent; color: var(--text-main);
+  border: 1px solid var(--border-color); padding: 8px; border-radius: 6px;
+  font-size: 12px; cursor: pointer; transition: background 0.15s;
+}
+.export-btn:hover { background: var(--bg-card); color: var(--text-heading); }
+
+/* ===== KEYBOARD SHORTCUTS ===== */
+.sidebar-shortcuts {
+  display: flex; gap: 12px; padding: 10px 16px 14px;
+  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+.shortcut-hint { font-size: 11px; color: var(--text-muted); }
+.shortcut-hint kbd {
+  background: var(--bg-input); color: var(--text-heading);
+  padding: 1px 5px; border-radius: 3px; font-size: 10px;
+  font-family: inherit; border: 1px solid var(--border-color);
+}
+
+/* ===== SIDEBAR IMPORT ===== */
+#importInput { display: none; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1400px) {

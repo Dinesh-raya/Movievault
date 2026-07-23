@@ -42,6 +42,13 @@ const authUser = document.getElementById('authUser');
 const loginBtn = document.getElementById('loginBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const sidebarAdd = document.querySelector('.sidebar-add');
+const sidebarBatch = document.getElementById('sidebarBatch');
+const batchToggle = document.getElementById('batchToggle');
+const batchSection = document.getElementById('batchSection');
+const batchInput = document.getElementById('batchInput');
+const batchBtn = document.getElementById('batchBtn');
+const batchProgress = document.getElementById('batchProgress');
+const exportBtn = document.getElementById('exportBtn');
 const OWNER_EMAIL = "dineshraya365@gmail.com";
 
 document.getElementById('closeModal').addEventListener('click', () => closeModal());
@@ -55,6 +62,12 @@ document.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
+  if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+    e.preventDefault(); filterSearch.focus();
+  }
+  if ((e.key === 'n' || e.key === 'N') && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+    e.preventDefault(); movieInput.focus();
+  }
 });
 
 // Auth
@@ -96,6 +109,7 @@ auth.onAuthStateChanged(user => {
 
 function updateAuthUI() {
   sidebarAdd.style.display = isOwner ? '' : 'none';
+  sidebarBatch.style.display = isOwner ? '' : 'none';
 }
 
 function toast(message, type = 'info') {
@@ -142,6 +156,7 @@ addBtn.addEventListener('click', async () => {
         year: data.Year,
         poster: data.Poster !== 'N/A' ? data.Poster : '',
         imdbRating: data.imdbRating,
+        imdbID: data.imdbID || '',
         genres: data.Genre ? data.Genre.split(', ') : [],
         plot: data.Plot,
         status: statusInput.value,
@@ -262,7 +277,7 @@ function openMovieModal(id) {
     </div>
     <h2>${movie.title}</h2>
     <div class="modal-meta">
-      <span class="rating">★ ${movie.imdbRating || 'N/A'}</span>
+      ${movie.imdbID ? `<a href="https://www.imdb.com/title/${movie.imdbID}" target="_blank" class="rating" title="Open on IMDb">★ ${movie.imdbRating || 'N/A'}</a>` : `<span class="rating">★ ${movie.imdbRating || 'N/A'}</span>`}
       <span>${movie.year}</span>
       <span class="status-badge">${movie.status}</span>
     </div>
@@ -349,6 +364,63 @@ async function deleteMovie(id) {
     }
   }
 }
+
+// Export as JSON
+exportBtn.addEventListener('click', () => {
+  if (moviesData.length === 0) return toast('No movies to export', 'error');
+  const blob = new Blob([JSON.stringify(moviesData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `movievault-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Vault exported', 'success');
+});
+
+// Batch Toggle
+batchToggle.addEventListener('click', () => {
+  batchSection.style.display = batchSection.style.display === 'none' ? '' : 'none';
+});
+
+// Batch Add
+batchBtn.addEventListener('click', async () => {
+  if (!isOwner) return toast('Only the owner can add movies', 'error');
+  const titles = batchInput.value.split(',').map(t => t.trim()).filter(Boolean);
+  if (!titles.length) return toast('Paste at least one title', 'error');
+
+  batchBtn.disabled = true;
+  let added = 0, failed = 0;
+
+  for (let i = 0; i < titles.length; i++) {
+    const title = titles[i];
+    batchProgress.textContent = `${i + 1}/${titles.length}: ${title}`;
+
+    const exists = moviesData.some(m => m.title.toLowerCase() === title.toLowerCase());
+    if (exists) { failed++; continue; }
+
+    try {
+      const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`);
+      const data = await res.json();
+      if (data.Response === 'False') { failed++; continue; }
+
+      await db.ref('movies').push({
+        title: data.Title, year: data.Year,
+        poster: data.Poster !== 'N/A' ? data.Poster : '',
+        imdbRating: data.imdbRating, imdbID: data.imdbID || '',
+        genres: data.Genre ? data.Genre.split(', ') : [],
+        plot: data.Plot, status: 'Watched',
+        myRating: '', myNotes: '', createdAt: new Date().toISOString()
+      });
+      added++;
+    } catch { failed++; }
+  }
+
+  batchBtn.disabled = false;
+  batchInput.value = '';
+  batchSection.style.display = 'none';
+  batchProgress.textContent = '';
+  toast(`Added ${added}, failed ${failed}`, failed ? 'error' : 'success');
+});
 
 // Dynamic Genre Dropdown & Sidebar
 function updateGenreDropdown() {

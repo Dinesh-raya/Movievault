@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#0c0d10"/>
+  <rect x="80" y="96" width="352" height="256" rx="24" fill="#1c2029" stroke="#f5a623" stroke-width="6"/>
+  <polygon points="208,160 208,288 320,224" fill="#f5a623"/>
+  <text x="256" y="420" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="48" fill="#f5a623">MV</text>
+</svg>
