@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Movie Vault</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎬 Personal Movie Vault</h1>
+      <p>Track your watched movies seamlessly</p>
+    </header>
+
+    <!-- Search / Add Section -->
+    <section class="add-movie-section">
+      <input type="text" id="movieInput" placeholder="Enter movie title (e.g., Inception)...">
+      <select id="statusInput">
+        <option value="Watched">Watched</option>
+        <option value="Plan to Watch">Plan to Watch</option>
+      </select>
+      <button id="addBtn">Add Movie</button>
+    </section>
+
+    <!-- Controls Section -->
+    <section class="controls">
+      <input type="text" id="filterSearch" placeholder="Search my saved movies...">
+      <select id="filterStatus">
+        <option value="All">All Statuses</option>
+        <option value="Watched">Watched</option>
+        <option value="Plan to Watch">Plan to Watch</option>
+      </select>
+      <select id="filterGenre">
+        <option value="All">All Genres</option>
+      </select>
+    </section>
+
+    <!-- Movie Cards Grid -->
+    <main id="movieGrid" class="movie-grid"></main>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
